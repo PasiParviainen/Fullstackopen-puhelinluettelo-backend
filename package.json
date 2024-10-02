@@ -1,0 +1,29 @@
+{
+  "name": "backend",
+  "version": "0.0.1",
+  "description": "Fullstackopen puhelinluettelo backend",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PasiParviainen/Fullstackopen-puhelinluettelo-backend.git"
+  },
+  "author": "Pasi Parviainen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PasiParviainen/Fullstackopen-puhelinluettelo-backend/issues"
+  },
+  "homepage": "https://github.com/PasiParviainen/Fullstackopen-puhelinluettelo-backend#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}
