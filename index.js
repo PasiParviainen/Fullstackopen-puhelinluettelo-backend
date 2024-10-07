@@ -1,120 +1,111 @@
+require("dotenv").config()
 const express = require("express")
 const morgan = require("morgan")
 const app = express()
 const cors = require("cors")
+const Contact = require("./models/contact")
 
 morgan.token("reqbody", request => {
     return JSON.stringify(request.body)
 })
 
 app.use(express.static("dist"))
+
+const errorHandler = (error, request, response, next) => {
+    console.log("----------------------------------")
+    console.error("ERROR", error.message)
+    console.log("----------------------------------")
+
+    if (error.name === "CastError") {
+        return response.status(400).send({error: "malformatted id"})
+    } else if (error.name === "ValidationError") {
+        return response.status(400).json({error: error.message})
+    }
+
+    next(error)
+}
+
 app.use(cors())
 app.use(express.json())
 app.use(morgan(":method :url :status :response-time ms :reqbody"))
 
-let persons = [
-    {
-      name: "Arto Hellas",
-      number: "040-123456",
-      id: "1"
-    },
-    {
-      name: "Ada Lovelace",
-      number: "39-44-5323523",
-      id: "2"
-    },
-    {
-      name: "Dan Abramov",
-      number: "12-43-234345",
-      id: "3"
-    },
-    {
-      name: "Mary Poppendieck",
-      number: "39-23-6423122",
-      id: "4"
-    },
-    {
-      name: "Pasi Parviainen",
-      number: "0440413674",
-      id: "5"
-    },
-    {
-      id: "6",
-      name: "Veli Parviainen",
-      number: "0404136742"
-    },
-    {
-      id: "7",
-      name: "Henna Kemppainen",
-      number: "0452770088"
-    }
-]
+const unknownEndpoint = (request, response) => {
+    response.status(404).send({error: 'unknown endpoint'})
+}
 
-app.get("/", (request, response) => {
-    response.send("<h1>Puhelinluettelo</h1>")
-})
+let persons = []
 
 app.get("/info", (request, response) => {
     response.send(`Puheleinluettelolla on ${persons.length} ihmisen tiedot<br>${Date()}`)
 })
 
-app.get("/api/persons", (request, response) => {
-    response.json(persons)
+app.get("/api/persons", (request, response, next) => {
+    Contact.find({})
+    .then(contacts => {
+        response.json(contacts)
+        persons = contacts
+    })
+    .catch(error => next(error))
 })
 
-app.get("/api/persons/:id", (request, response) => {
-    const id = request.params.id
-    const person = persons.find(person => person.id === id)
-    if (person) {
-        response.json(person)
-    } else {
-        response.status(404).end()
-    }
+app.get("/api/persons/:id", (request, response, next) => {
+    Contact.findById(request.params.id)
+    .then(person => {
+        if (person) {
+            response.json(person)
+        } else {
+            response.status(404).end()
+        }
+    })
+    .catch(error => next(error))
 })
 
-app.delete("/api/persons/:id", (request, response) => {
-    const id= request.params.id
-    persons = persons.filter(person => person.id !== id)
-
-    response.status(204).end()
+app.delete("/api/persons/:id", (request, response, next) => {
+    Contact.findByIdAndDelete(request.params.id)
+    .then(result => {
+        response.status(204).end()
+    })
+    .catch(error => next(error))
 })
 
-app.post("/api/persons", (request, response) => {
+app.post("/api/persons", (request, response, next) => {
     const body = request.body
-
-    if (!body.name) {
-        return response.status(400).json({
-            error: "Nimi puttuu"
-        })
-    } else if (!body.number) {
-        return response.status(400).json({
-            error: "Numero puuttuu"
-        })
-    } else if (body.name.toLowerCase() === persons.map(person => person.name.toLowerCase())) {
-        return response.status(400).json({
-            error: "Nimi on jo puhelinluettelossa"
-        })
-    } else if (body.number === persons.map(person => person.number)) {
-        return response.status(400).json({
-            error: "Numero on jo puhelinluettelossa"
-        })
-    }
-
-    const person = {
+    
+    const contact = new Contact({
         name: body.name,
         number: body.number,
-        id: generateId()
-    }
+    })
 
-    persons = persons.concat(person)
-    response.json(person)
+    contact.save()
+    .then(savedContact => {
+        response.json(savedContact)
+    })
+    .catch(error => next(error))
 })
 
-const generateId = () => {
-    return String(Math.round(Math.random() * 100000))
-}
+app.put("/api/persons/:id", (request, response, next) => {
+    //const body = request.body
+    const {name, number} = request.body
 
-const PORT = process.env.PORT || 3001
+    /*const person = {
+        name: body.name,
+        number: body.number,
+    }*/
+
+    Contact.findByIdAndUpdate(
+        request.params.id,
+        {name, number},
+        {new: true, runValidators: true, context: "query"})
+    .then(updatedContact => {
+        response.json(updatedContact)
+    })
+    .catch(error => next(error))
+})
+
+app.use(errorHandler)
+app.use(unknownEndpoint)
+
+const PORT = process.env.PORT
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
 })
